@@ -42,6 +42,9 @@ ENDIF (CMAKE_BUILD_TYPE STREQUAL "")
 
 MESSAGE(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+ADD_DEFINITIONS(-DPROJECT_SOURCE_DIR=\\"${CMAKE_SOURCE_DIR}\\"
+                -DPROJECT_BINARY_DIR=\\"${CMAKE_BINARY_DIR}\\")
+
 # add the 'lib' dir to cmake's module search path
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/lib/")
 
@@ -87,41 +90,32 @@ IF (CMAKE_COMPILER_IS_GNUCXX)
 
 ENDIF (CMAKE_COMPILER_IS_GNUCXX)
 
-IF (CYGWIN)
-   ADD_DEFINITIONS(-DCYGWIN)
-#   SET(WIN32 1)
-ENDIF (CYGWIN)
-
+# Do the windows build
 IF (WIN32)
    ADD_DEFINITIONS(-DWIN32)
-ENDIF (WIN32)
+	IF (CYGWIN)
+   	ADD_DEFINITIONS(-DCYGWIN)
+	#   SET(WIN32 1)
+	ENDIF (CYGWIN)
 
-# this is for the case when the code is compiled under windows but not
-# under cygwin
-IF (WIN32 AND NOT UNIX)
-   ADD_DEFINITIONS(-DWIN32_NOT_UNIX)
-ENDIF (WIN32 AND NOT UNIX)
-
-# check dependencies
-IF (WIN32 AND NOT UNIX)
-	FIND_PACKAGE(PThreads REQUIRED)
-	FIND_PACKAGE(STLPort REQUIRED)
-	INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/include/win32" ${PTHREADS_INCLUDE_DIR} ${STLPORT_INCLUDE_DIR})
-	LINK_LIBRARIES(${PTHREADS_LIBRARY} ${STLPORT_LIBRARIES})
-	ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
-ELSE (WIN32 AND NOT UNIX)
-	LINK_LIBRARIES(pthread)
-	IF (NOT APPLE AND NOT WIN32)
+	# It is "not unix" when the code is compiled under windows but not
+	# under cygwin
+	IF (NOT UNIX)
+   	ADD_DEFINITIONS(-DWIN32_NOT_UNIX)
+		FIND_PACKAGE(PThreads REQUIRED)
+		FIND_PACKAGE(STLPort REQUIRED)
+		INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/include/win32" ${PTHREADS_INCLUDE_DIR} ${STLPORT_INCLUDE_DIR})
+		LINK_LIBRARIES(${PTHREADS_LIBRARY} ${STLPORT_LIBRARIES})
+		ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
+	ELSE (NOT UNIX)
+		LINK_LIBRARIES(pthread)
 		IF (CYGWIN)
 			SET(CMAKE_SHARED_LINKER_FLAGS "-Wl")
 		ELSE (CYGWIN)
 			SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--enable-new-dtags")
 		ENDIF (CYGWIN)
-	ENDIF (NOT APPLE AND NOT WIN32)
-ENDIF (WIN32 AND NOT UNIX)
-
-ADD_DEFINITIONS(-DPROJECT_SOURCE_DIR=\\"${CMAKE_SOURCE_DIR}\\"
-                -DPROJECT_BINARY_DIR=\\"${CMAKE_BINARY_DIR}\\")
+	ENDIF (NOT UNIX)
+ENDIF (WIN32)
 
 # ===================================================================
 # Check for existance of various required, optional packages.
@@ -695,20 +689,25 @@ SET(CPACK_SOURCE_IGNORE_FILES
 	"^${PROJECT_BINARY_DIR}/examples/hopfield/hopfield$"
 )
 SET(CPACK_PACKAGE_INSTALL_DIRECTORY "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
-IF (WIN32 AND NOT UNIX)
-  # There is a bug in NSI that does not handle full unix paths properly. Make
-  # sure there is at least one set of four (4) backlasshes.
-  SET(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}\\\\lib\\\\opencog.ico")
-  SET(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\cogserver.exe")
-  SET(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} The Open Cognition Framework")
-  SET(CPACK_NSIS_HELP_LINK "http:\\\\\\\\www.opencog.org")
-  SET(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\www.opencog.org")
-  SET(CPACK_NSIS_CONTACT "opencog@googlegroups.com")
-  SET(CPACK_NSIS_MODIFY_PATH ON)
-ELSE(WIN32 AND NOT UNIX)
-  SET(CPACK_STRIP_FILES "bin/cogserver")
-  SET(CPACK_SOURCE_STRIP_FILES "")
-ENDIF(WIN32 AND NOT UNIX)
+IF (WIN32)
+	# Its "not unix" is cygwin is being used.
+	IF (NOT UNIX)
+		# There is a bug in NSI that does not handle full unix paths
+		# properly. Make sure there is at least one set of four (4)
+		# backslashes.
+		SET(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}\\\\lib\\\\opencog.ico")
+		SET(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\cogserver.exe")
+		SET(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} The Open Cognition Framework")
+		SET(CPACK_NSIS_HELP_LINK "http:\\\\\\\\www.opencog.org")
+		SET(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\www.opencog.org")
+		SET(CPACK_NSIS_CONTACT "opencog@googlegroups.com")
+		SET(CPACK_NSIS_MODIFY_PATH ON)
+	ELSE(NOT UNIX)
+		SET(CPACK_STRIP_FILES "bin/cogserver")
+		SET(CPACK_SOURCE_STRIP_FILES "")
+	ENDIF(NOT UNIX)
+ENDIF(WIN32)
+
 SET(CPACK_PACKAGE_EXECUTABLES "cogserver" "The Open Cognition Framework")
 INCLUDE(CPack)
 
