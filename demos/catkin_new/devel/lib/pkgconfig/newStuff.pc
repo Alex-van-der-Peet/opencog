@@ -1,0 +1,8 @@
+prefix=/home/lake/Working/catkin_new/devel
+
+Name: newStuff
+Description: Description of newStuff
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/lake/Working/catkin_new/devel/lib 
+Requires: 
