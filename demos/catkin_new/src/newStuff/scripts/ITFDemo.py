@@ -5,16 +5,65 @@
     Based on the voice_nav.py script by Patrick Goebel in the ROS by Example tutorial.
 """
 
-import roslib; roslib.load_manifest('pocketsphinx')
+import roslib; roslib.load_manifest('speech')
 import rospy
 import math
+import os
+import subprocess
+import re
+import time
 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 from sound_play.libsoundplay import SoundClient
 
+#speech_path = roslib.packages.get_pkg_dir('speech')
+#sphinx_path = roslib.packages.get_pkg_dir('sphinx')
+
+speech_path = '/home/ros/ros/sail-ros-pkg/semistable/audio/speech/'
+sphinx_path = '/home/ros/ros/sail-ros-pkg/semistable/3rdparty/sphinx'
+
+listFile = 'stdin' # file containing list of .raw files that livepretend should decode
+argFile = speech_path + '/sphinx/ispy.arg' # aruments to livepretend
+dir = speech_path + '/raw/' # directory of .raw files
+program = sphinx_path + '/bin/sphinx4_liveadapt' # ASR decoder
+print "Sphinx path: " + program
+#TODO: Remove the speakerFile?
+speakerFile = sphinx_path + '/raw/adam_train_read.raw' # pre-recorded audio for us in adaptation
+
 class ITFDemo:
+    def __init__adapt(self, train):
+        """ Used for speaker adaptation initialization.
+            Start the sphinx speech recognition process, run adaptation on train file and discard results from proc.stdout
+        """
+        #self.pub = rospy.Publisher('tts', String) # parrot
+        self.pub = rospy.Publisher('nlu', String) # parrot
+        cmd = [rpogram, listFile, dir, argFile]
+        rospy.loginfo(cmd)
+        self.proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        rospy.loginfo("Adapting on %s\n" % train.string('.raw'))
+        #self.proc.stdin.write(train.strip('.raw'))
+        #self.proc.stdin.write('adam_train_read') #XXX: uncomment for adaptation
+        self.proc.stdin.write('\n')
+        end_utt_re = re.compile("sec CPU,")
+        hyp_re = re.compile("PARTIONAL_HYP: (.*)$")
+        hyp = ""
+        #time.sleep(10)
+        while 1:
+            line = self.proc.stdout.readline()
+            if line:
+                rospy.loginfo(line.strip())
+            m = hyp_re.search(line)
+            if m:
+                hyp = m.group(1)
+            elif end_utt_re.search(line):
+                rospy.loginfo("Adaptation complete.")
+                break
+         rospy.loginfo("hyp: %s\n" % hyp.strip())
+
     def __init__(self):
+        """ Plain Vanilla Startup """
         rospy.on_shutdown(self.cleanup)
 		
         # Initailize data members from parameters
@@ -81,6 +130,26 @@ class ITFDemo:
         if not(self.pauseSpeech):
             rospy.loginfo("Speaking responses to target")
 
+        # Setup sphinx listening process
+        self.pub = rospy.Publisher('nlu', String) # parrot
+        cmd = [program, listFile, dir, argFile]
+        rospy.loginfo(cmd)
+        self.proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        line = ""
+        while (not line.startswith("INFO: s3_decode.c(264): Partial hypothesis WILL be dumped")):
+            line  = self.proc.stdout.readline()
+            print line.strip()
+
+        rospy.loginfo("Done with initialization")
+
+
+    def startup():
+        rospy.loginfo("Sphinx ASR startup\n")
+        # remove old file list
+        # doit = sphinxwrapper(speakerFile)
+        doit = ITFDemo()
+        rospy.init_node('itf_demo')
+        rospy.Subscriber("audio_clip_loc", String, doit.asr)
         # We have to keep publishing the cmd_vel message if we want the robot to keep moving.
         while not rospy.is_shutdown():
             self.cmd_vel_pub.publish(self.msg)
@@ -238,6 +307,25 @@ class ITFDemo:
         self.msg.linear.x = min(self.max_speed, max(-self.max_speed, self.msg.linear.x))
         self.msg.angular.z = min(self.max_angular_speed, max(-self.max_angular_speed, self.msg.angular.z))
 
+    def asr(self, data):
+        rospy.loginfo("Sphinx ASR: %s\n" % data.data)
+        self.proc.stdin.write(data.data.strip('.raw'))
+        self.proc.stdin.write('\n')
+        end_utt_re = re.compile("sec CPU,") # last line of utterance output
+        hyp_re = re.compile("PARTIAL_HYP: (.*)$")
+        hyp = ""
+        while 1: # file object for input
+            line = self.proc.stdout.readline()
+            if (line != ""):
+                rospy.loginfo("Line: " + line)
+            m = hyp_re.search(line)
+            if m:
+                hyp = m.group(1)
+            elif end_utt_re.search(line):
+                break
+
+        rospy.loginfo("Recognized: %s\n" % hyp.strip())
+        self.pub.publish(String(hyp.strip()))
 
     def cleanup(self):
         # When shutting down be sure to stop the robot!  Publish a Twist message consisting of all zeros.
@@ -249,13 +337,6 @@ class ITFDemo:
 
 if __name__=="__main__":
     '''The main entry point...'''
+        startup()
 
-    # Initialization
-    rospy.init_node('itf_demo')
-
-    try:
-        # Just need to instantiate, initialization should handle the rest
-        ITFDemo()
-    except:
-        pass
 
