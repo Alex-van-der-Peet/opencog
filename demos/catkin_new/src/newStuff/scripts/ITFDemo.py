@@ -136,9 +136,10 @@ class ITFDemo:
         rospy.loginfo(cmd)
         self.proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         line = ""
+        #TODO: determing when this stops...
         while (not line.startswith("INFO: s3_decode.c(264): Partial hypothesis WILL be dumped")):
             line  = self.proc.stdout.readline()
-            print line.strip()
+            rospy.loginfo(line.strip())
 
         rospy.loginfo("Done with initialization")
 
