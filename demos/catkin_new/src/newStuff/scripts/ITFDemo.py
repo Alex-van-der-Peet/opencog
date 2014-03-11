@@ -60,7 +60,7 @@ class ITFDemo:
             elif end_utt_re.search(line):
                 rospy.loginfo("Adaptation complete.")
                 break
-         rospy.loginfo("hyp: %s\n" % hyp.strip())
+            rospy.loginfo("hyp: %s\n" % hyp.strip())
 
     def __init__(self):
         """ Plain Vanilla Startup """
