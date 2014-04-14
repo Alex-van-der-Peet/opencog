@@ -42,7 +42,7 @@ class PLNExamples(object):
 
         start = time()
 
-        examples_directory = '../tests/python/test_pln/scm/'
+        examples_directory = '../../../tests/python/test_pln/scm/'
         scheme_files = []
 
         import os
@@ -231,7 +231,7 @@ class AllRules(object):
         rule._chainer = self.test_chainer
         return rule
 
-#if __name__ == '__main__':
-#    atomspace = AtomSpace()
-#    examplesRunner = PLNExamples(atomspace)
-#    examplesRunner.test_all()
+if __name__ == '__main__':
+    atomspace = AtomSpace()
+    examplesRunner = PLNExamples(atomspace)
+    examplesRunner.test_all()
